@@ -1,6 +1,6 @@
 <template>
   <div class="addUser">
-    <!-- 点击添加用户对话框 -->
+    <!-- 点击添加用户 -->
     <el-dialog title="提示"
                :visible.sync="isDialogShow"
                width="30%">
