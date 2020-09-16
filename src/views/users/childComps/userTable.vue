@@ -18,7 +18,8 @@
           添加用户
         </el-button>
         <!-- 添加用户 -->
-        <add-user :isDialogShow="isDialogShow" />
+        <add-user-dialog :isDialogShow="isDialogShow"
+                         @dialogClose="dialogClose" />
       </el-col>
     </el-row>
     <!-- 用户列表 -->
@@ -45,13 +46,14 @@
           </el-switch>
         </template>
       </el-table-column>
+
       <el-table-column label="操作">
         <template slot-scope="scope">
           <!-- 修改按钮 -->
           <el-button type="primary"
                      icon="el-icon-edit"
                      size="mini"
-                     @click="showEditDialog(scope.row.id)">
+                     @click="showEditDialogs(scope.row.id)">
           </el-button>
           <!-- 删除按钮 -->
           <el-button type="danger"
@@ -70,6 +72,11 @@
                        @click="setRole(scope.row)">
             </el-button>
           </el-tooltip>
+          <!-- 修改用户对话框 -->
+          <edit-user-dialog :showEditDialog="showEditDialog"
+                            @closeEditDialog="closeEditDialog"
+                            :editForm="editForm"
+                            @editSuccess="editSuccess" />
         </template>
       </el-table-column>
     </el-table>
@@ -87,30 +94,38 @@
 
 <script>
 //网络请求模块
-import { getUserList, changeUserState } from "network/http";
-import addUser from "./addUser";
+import {
+  getUserList,
+  changeUserState,
+  searchUsers,
+  deleteUsers,
+} from "network/http";
+import addUserDialog from "./operateUser/addUserDialog";
+import editUserDialog from "./operateUser/editUserDialog.vue";
 
 export default {
   name: "table",
   data() {
-   
-
     return {
       userInfo: {
         query: "",
         //当前页数
         pagenum: 1,
-        pagesize: 2
+        pagesize: 4,
       },
       userList: [],
       total: 0,
       // 添加用户对话框
-      isDialogShow: false
+      isDialogShow: false,
+      showEditDialog: false,
+      //查询到的用户信息
+      editForm: {},
     };
   },
   computed: {},
   components: {
-    addUser
+    addUserDialog,
+    editUserDialog,
   },
   created() {
     this.getUserList();
@@ -119,7 +134,7 @@ export default {
   methods: {
     //获取用户数据
     getUserList() {
-      getUserList(this.userInfo).then(res => {
+      getUserList(this.userInfo).then((res) => {
         if (res.meta.status !== 200)
           return this.$message.error("获取用户列表失败");
         this.userList = res.data.users;
@@ -139,7 +154,7 @@ export default {
     },
     //状态按钮改变
     userStateChanged(userInfo) {
-      changeUserState(userInfo.id, userInfo.mg_state).then(res => {
+      changeUserState(userInfo.id, userInfo.mg_state).then((res) => {
         if (res.meta.status !== 200) {
           userInfo.mg_state = !userInfo.mg_state;
           this.$message.error("用户状态更新失败");
@@ -147,8 +162,58 @@ export default {
           this.$message.success("更新用户状态成功");
         }
       });
-    }
-  }
+    },
+    //点击“取消”按钮或“确认”按钮后关闭添加用户对话框
+    dialogClose() {
+      this.isDialogShow = false;
+    },
+    //点击编辑按钮展示“编辑对话框”
+    showEditDialogs(id) {
+      //查询用户信息
+      this.showEditDialog = true;
+      searchUsers(id).then((res) => {
+        if (res.meta.status !== 200) {
+          return this.$message.error("查询用户信息失败");
+        }
+        this.editForm = res.data;
+      });
+    },
+    //关闭编辑对话框
+    closeEditDialog() {
+      this.showEditDialog = false;
+    },
+    //编辑用户成功后的操作
+    editSuccess() {
+      this.showEditDialog = false;
+      this.getUserList();
+    },
+    //删除用户
+    removeUserById(id) {
+      this.$confirm("此操作将永久删除该用户, 是否继续?", "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      })
+        .then(() => {
+          deleteUsers(id).then((res) => {
+            if (res.meta.status != 200) {
+              return this.$message.error("删除用户失败");
+            }
+            this.$message({
+              type: "success",
+              message: "删除成功!",
+            });
+            this.getUserList();
+          });
+        })
+        .catch(() => {
+          this.$message({
+            type: "info",
+            message: "已取消删除",
+          });
+        });
+    },
+  },
 };
 </script>
 <style lang="less" scoped>
